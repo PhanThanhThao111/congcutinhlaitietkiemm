@@ -21,7 +21,7 @@ def format_vnd(amount):
 # =========================
 # TIÊU ĐỀ ỨNG DỤNG
 # =========================
-st.title("🏦 TÍNH LÃI GỬI TIẾT KIỆM")
+st.title("🏦 TÍNH LÃI GỬI TIẾT KIỆM - Phan Thanh Thảo")
 st.write(
     "Tính toán tiền lãi dự kiến dựa trên số tiền gửi, "
     "kỳ hạn, lãi suất và hình thức nhận lãi."
