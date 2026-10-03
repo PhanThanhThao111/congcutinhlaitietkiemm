@@ -1,0 +1,363 @@
+import streamlit as st
+import pandas as pd
+
+# =========================
+# CẤU HÌNH TRANG
+# =========================
+st.set_page_config(
+    page_title="Tính lãi gửi tiết kiệm - Phan Thanh Thảo",
+    page_icon="🏦",
+    layout="centered"
+)
+
+# =========================
+# LOGO
+# =========================
+st.image("logo.jpg")
+
+# =========================
+# BẢNG LÃI SUẤT THAM CHIẾU
+# =========================
+interest_rates = {
+    1: 3.00,
+    2: 3.00,
+    3: 3.50,
+    6: 4.50,
+    9: 4.70,
+    12: 5.00,
+    18: 5.20,
+    24: 5.30,
+    36: 5.40
+}
+
+# =========================
+# HÀM ĐỊNH DẠNG TIỀN
+# =========================
+def format_vnd(amount):
+    return f"{amount:,.0f}".replace(",", ".") + " VNĐ"
+
+
+# =========================
+# TIÊU ĐỀ ỨNG DỤNG
+# =========================
+st.title("🏦 TÍNH LÃI GỬI TIẾT KIỆM - Phan Thanh Thảo")
+
+st.write(
+    "Tính toán tiền lãi dự kiến dựa trên số tiền gửi, "
+    "kỳ hạn và hình thức nhận lãi. "
+    "Lãi suất được lấy tự động từ bảng lãi suất tham chiếu."
+)
+
+st.divider()
+
+
+# =========================
+# BẢNG LÃI SUẤT THAM CHIẾU
+# =========================
+st.subheader("📊 Bảng lãi suất tham chiếu")
+
+rate_table = pd.DataFrame({
+    "Kỳ hạn": [f"{month} tháng" for month in interest_rates.keys()],
+    "Lãi suất tham chiếu (%/năm)": [
+        f"{rate:.2f}%" for rate in interest_rates.values()
+    ]
+})
+
+st.dataframe(
+    rate_table,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.caption(
+    "Lãi suất trong bảng là mức tham chiếu dùng cho mục đích minh họa."
+)
+
+st.divider()
+
+
+# =========================
+# NHẬP THÔNG TIN
+# =========================
+st.subheader("📋 Thông tin tiền gửi")
+
+with st.form("savings_form"):
+
+    # -------------------------
+    # SỐ TIỀN GỬI
+    # -------------------------
+    principal = st.number_input(
+        "Số tiền gửi (VNĐ)",
+        min_value=1_000_000,
+        value=100_000_000,
+        step=1_000_000,
+        format="%d"
+    )
+
+    col1, col2 = st.columns(2)
+
+    # -------------------------
+    # KỲ HẠN
+    # -------------------------
+    with col1:
+        term_months = st.selectbox(
+            "Kỳ hạn gửi",
+            options=list(interest_rates.keys()),
+            index=6,
+            format_func=lambda x: f"{x} tháng"
+        )
+
+    # -------------------------
+    # LÃI SUẤT TỰ ĐỘNG
+    # -------------------------
+    with col2:
+
+        # Tự động lấy lãi suất theo kỳ hạn
+        annual_rate = interest_rates[term_months]
+
+        st.text_input(
+            "Lãi suất tham chiếu (%/năm)",
+            value=f"{annual_rate:.2f}%",
+            disabled=True
+        )
+
+    # -------------------------
+    # HÌNH THỨC NHẬN LÃI
+    # -------------------------
+    interest_method = st.selectbox(
+        "Hình thức nhận lãi",
+        options=[
+            "Cuối kỳ",
+            "Hàng tháng",
+            "Hàng quý"
+        ]
+    )
+
+    submitted = st.form_submit_button(
+        "🧮 TÍNH TIỀN LÃI",
+        use_container_width=True
+    )
+
+
+# =========================
+# TÍNH TOÁN VÀ HIỂN THỊ
+# =========================
+if submitted:
+
+    # Quy đổi lãi suất năm sang lãi suất theo tháng
+    monthly_rate = annual_rate / 100 / 12
+
+    # =========================
+    # XÁC ĐỊNH SỐ KỲ NHẬN LÃI
+    # =========================
+
+    if interest_method == "Cuối kỳ":
+
+        periods = 1
+        months_per_period = term_months
+
+    elif interest_method == "Hàng tháng":
+
+        periods = term_months
+        months_per_period = 1
+
+    else:
+
+        # Nhận lãi hàng quý
+        periods = term_months // 3
+        months_per_period = 3
+
+    # =========================
+    # KIỂM TRA KỲ HẠN HÀNG QUÝ
+    # =========================
+
+    if interest_method == "Hàng quý" and term_months % 3 != 0:
+
+        st.warning(
+            "⚠️ Kỳ hạn này không chia hết cho 3 tháng. "
+            "Vui lòng chọn kỳ hạn 3, 6, 9, 12, 18, 24 hoặc 36 tháng "
+            "khi nhận lãi hàng quý."
+        )
+
+    else:
+
+        # =========================
+        # TÍNH LÃI ĐỊNH KỲ
+        # =========================
+
+        periodic_interest = (
+            principal
+            * monthly_rate
+            * months_per_period
+        )
+
+        # =========================
+        # TỔNG TIỀN LÃI
+        # =========================
+
+        total_interest = (
+            periodic_interest * periods
+        )
+
+        # =========================
+        # TỔNG GỐC + LÃI
+        # =========================
+
+        total_amount = (
+            principal + total_interest
+        )
+
+        # =========================
+        # HIỂN THỊ KẾT QUẢ
+        # =========================
+
+        st.divider()
+
+        st.subheader("💰 Kết quả tính toán")
+
+        # -------------------------
+        # THÔNG TIN ĐẦU VÀO
+        # -------------------------
+
+        st.info(
+            f"**Kỳ hạn:** {term_months} tháng  |  "
+            f"**Lãi suất:** {annual_rate:.2f}%/năm  |  "
+            f"**Hình thức:** {interest_method}"
+        )
+
+        # -------------------------
+        # CÁC Ô KẾT QUẢ
+        # -------------------------
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.metric(
+                label="💵 Tiền lãi mỗi kỳ",
+                value=format_vnd(periodic_interest)
+            )
+
+            st.metric(
+                label="💰 Tổng tiền lãi",
+                value=format_vnd(total_interest)
+            )
+
+        with col2:
+
+            st.metric(
+                label="🏦 Tiền gốc",
+                value=format_vnd(principal)
+            )
+
+            st.metric(
+                label="💵 Tổng gốc + lãi",
+                value=format_vnd(total_amount)
+            )
+
+        # =========================
+        # BẢNG LỊCH NHẬN LÃI
+        # =========================
+
+        st.subheader("📅 Lịch nhận lãi dự kiến")
+
+        if interest_method == "Cuối kỳ":
+
+            schedule = [{
+                "Kỳ nhận lãi": "Cuối kỳ",
+                "Thời điểm": f"Tháng thứ {term_months}",
+                "Tiền lãi (VNĐ)": round(total_interest),
+                "Gốc nhận lại (VNĐ)": principal
+            }]
+
+        else:
+
+            schedule = []
+
+            for i in range(1, periods + 1):
+
+                month = i * months_per_period
+
+                schedule.append({
+                    "Kỳ nhận lãi": f"Kỳ {i}",
+                    "Thời điểm": f"Tháng thứ {month}",
+                    "Tiền lãi (VNĐ)": round(periodic_interest),
+                    "Gốc nhận lại (VNĐ)": (
+                        principal if i == periods else 0
+                    )
+                })
+
+        # =========================
+        # TẠO DATAFRAME
+        # =========================
+
+        df = pd.DataFrame(schedule)
+
+        # Định dạng tiền
+        df["Tiền lãi (VNĐ)"] = df[
+            "Tiền lãi (VNĐ)"
+        ].apply(
+            lambda x: f"{x:,.0f}".replace(",", ".")
+        )
+
+        df["Gốc nhận lại (VNĐ)"] = df[
+            "Gốc nhận lại (VNĐ)"
+        ].apply(
+            lambda x: f"{x:,.0f}".replace(",", ".")
+        )
+
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # =========================
+        # CÔNG THỨC TÍNH
+        # =========================
+
+        with st.expander("📖 Xem cách tính"):
+
+            st.write(
+                "**Công thức tổng tiền lãi:**"
+            )
+
+            st.latex(
+                r"Lãi = Tiền\ gốc \times "
+                r"\frac{Lãi\ suất}{100} \times "
+                r"\frac{Số\ tháng}{12}"
+            )
+
+            st.write(
+                f"**Áp dụng:** "
+                f"{format_vnd(principal)} × "
+                f"{annual_rate:.2f}% × "
+                f"{term_months}/12"
+            )
+
+            st.write(
+                f"**Tổng tiền lãi:** "
+                f"{format_vnd(total_interest)}"
+            )
+
+            st.write(
+                f"**Tổng gốc + lãi:** "
+                f"{format_vnd(total_amount)}"
+            )
+
+        # =========================
+        # LƯU Ý
+        # =========================
+
+        st.caption(
+            "Lưu ý: Kết quả mang tính tham khảo, áp dụng lãi đơn "
+            "trên số tiền gốc ban đầu. Lãi suất thực tế, cách tính "
+            "ngày gửi và điều kiện nhận lãi phụ thuộc vào ngân hàng."
+        )
+
+else:
+
+    st.caption(
+        "Nhập số tiền gửi, chọn kỳ hạn và hình thức nhận lãi, "
+        "sau đó nhấn 'TÍNH TIỀN LÃI' để xem kết quả."
+    )
